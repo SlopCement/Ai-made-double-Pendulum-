@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Double Pendulum Simulation</title>
+    <style>
+        body { margin: 0; background: #1a1a1a; color: white; display: flex; flex-direction: column; align-items: center; font-family: sans-serif; }
+        canvas { background: #000; cursor: crosshair; }
+        .controls { padding: 10px; }
+    </style>
+</head>
+<body>
+    <div class="controls">Double Pendulum - RK4 Integration</div>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight - 50;
+
+        // Constants and State
+        const g = 1;
+        let p = {
+            r1: 150, r2: 150,
+            m1: 10,  m2: 10,
+            a1: Math.PI / 2, a2: Math.PI / 2,
+            v1: 0,   v2: 0
+        };
+
+        const cx = canvas.width / 2;
+        const cy = 200;
+        let history = [];
+
+        function getDerivatives(a1, a2, v1, v2) {
+            const { m1, m2, r1, r2 } = p;
+            
+            let num1 = -g * (2 * m1 + m2) * Math.sin(a1);
+            let num2 = -m2 * g * Math.sin(a1 - 2 * a2);
+            let num3 = -2 * Math.sin(a1 - a2) * m2;
+            let num4 = v2 * v2 * r2 + v1 * v1 * r1 * Math.cos(a1 - a2);
+            let den = r1 * (2 * m1 + m2 - m2 * Math.cos(2 * a1 - 2 * a2));
+            const acc1 = (num1 + num2 + num3 * num4) / den;
+
+            num1 = 2 * Math.sin(a1 - a2);
+            num2 = (v1 * v1 * r1 * (m1 + m2));
+            num3 = g * (m1 + m2) * Math.cos(a1);
+            num4 = v2 * v2 * r2 * m2 * Math.cos(a1 - a2);
+            den = r2 * (2 * m1 + m2 - m2 * Math.cos(2 * a1 - 2 * a2));
+            const acc2 = (num1 * (num2 + num3 + num4)) / den;
+
+            return [v1, v2, acc1, acc2];
+        }
+
+        function update() {
+            // RK4 Step
+            const dt = 0.5;
+            const k1 = getDerivatives(p.a1, p.a2, p.v1, p.v2);
+            const k2 = getDerivatives(p.a1 + k1[0]*dt/2, p.a2 + k1[1]*dt/2, p.v1 + k1[2]*dt/2, p.v2 + k1[3]*dt/2);
+            const k3 = getDerivatives(p.a1 + k2[0]*dt/2, p.a2 + k2[1]*dt/2, p.v1 + k2[2]*dt/2, p.v2 + k2[3]*dt/2);
+            const k4 = getDerivatives(p.a1 + k3[0]*dt, p.a2 + k3[1]*dt, p.v1 + k3[2]*dt, p.v2 + k3[3]*dt);
+
+            p.a1 += (dt/6) * (k1[0] + 2*k2[0] + 2*k3[0] + k4[0]);
+            p.a2 += (dt/6) * (k1[1] + 2*k2[1] + 2*k3[1] + k4[1]);
+            p.v1 += (dt/6) * (k1[2] + 2*k2[2] + 2*k3[2] + k4[2]);
+            p.v2 += (dt/6) * (k1[3] + 2*k2[3] + 2*k3[3] + k4[3]);
+        }
+
+        function draw() {
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const x1 = cx + p.r1 * Math.sin(p.a1);
+            const y1 = cy + p.r1 * Math.cos(p.a1);
+            const x2 = x1 + p.r2 * Math.sin(p.a2);
+            const y2 = y1 + p.r2 * Math.cos(p.a2);
+
+            // Draw Trace
+            history.push({x: x2, y: y2});
+            if (history.length > 200) history.shift();
+            ctx.beginPath();
+            ctx.strokeStyle = '#00ffcc';
+            for(let i = 1; i < history.length; i++) {
+                ctx.moveTo(history[i-1].x, history[i-1].y);
+                ctx.lineTo(history[i].x, history[i].y);
+            }
+            ctx.stroke();
+
+            // Draw Pendulum
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(x1, y1, p.m1, 0, Math.PI*2);
+            ctx.arc(x2, y2, p.m2, 0, Math.PI*2);
+            ctx.fill();
+
+            update();
+            requestAnimationFrame(draw);
+        }
+
+        draw();
+    </script>
+</body>
+</html>
